@@ -2,6 +2,7 @@ import './style.css';
 import { demoData, importDataset } from './data.js';
 import { exercises } from './exercises.js';
 import { caseStudy } from './story.js';
+import { readDrafts, draftStorageKey } from './drafts.js';
 
 const icons = {
   leaf: '<path d="M20 4C9 2 3 7 5 14s13 8 15-10Z"/><path d="M4 21 15 10M9 16v-5m0 5h5"/>',
@@ -20,11 +21,11 @@ const escape = value => String(value ?? 'NULL').replace(/[&<>"']/g, c => ({ '&':
 const $ = (selector) => document.querySelector(selector);
 let data = demoData(), active = 0, view = 'lab', busy = false, ready = false;
 let worker, serial = 0, pending = new Map(), drafts = {}, completed = new Set(), expectedResults = [];
-try { drafts = JSON.parse(localStorage.getItem('tea-drafts') || '{}'); if (!drafts || typeof drafts !== 'object') drafts = {}; } catch { drafts = {}; }
+try { drafts = readDrafts(localStorage); } catch { drafts = {}; }
 
 function saveDraft() {
-  drafts[active] = $('#sql-editor').value;
-  try { localStorage.setItem('tea-drafts', JSON.stringify(drafts)); } catch { /* Private browsing can disable storage. */ }
+  drafts[exercises[active].id] = $('#sql-editor').value;
+  try { localStorage.setItem(draftStorageKey, JSON.stringify(drafts)); } catch { /* Private browsing can disable storage. */ }
 }
 function rpc(message, timeout = 4000) {
   const id = ++serial;
@@ -69,7 +70,7 @@ document.querySelector('#app').innerHTML = `
     <a class="brand" href="#lab" aria-label="茶序首頁"><span class="brand-mark">${icon('leaf')}</span><span>茶序<small>TEA QUERY LAB</small></span></a>
     <div class="sidebar-label">功能選單</div>
     <nav aria-label="主要導覽">
-      <a href="#lab" data-view="lab" class="nav-link active">${icon('code')}查詢練習<span class="nav-count">06</span></a>
+      <a href="#lab" data-view="lab" class="nav-link active">${icon('code')}查詢練習<span class="nav-count">${String(exercises.length).padStart(2, '0')}</span></a>
       <a href="#schema" data-view="schema" class="nav-link">${icon('db')}資料庫設計</a>
       <a href="#story" data-view="story" class="nav-link">${icon('book')}案例背景</a>
       <a href="#sources" data-view="sources" class="nav-link">${icon('grid')}資料與來源</a>
@@ -77,13 +78,13 @@ document.querySelector('#app').innerHTML = `
     <div class="sidebar-bottom"><div class="mini-leaf">${icon('leaf')}</div><p>手搖飲訂單分析<br>SQL 查詢練習</p></div>
   </aside>
   <main>
-    <header class="topbar"><div class="breadcrumb">學習工作室 <span>/</span> <strong id="breadcrumb-current">查詢練習</strong></div><span class="status"><i></i><span id="db-status" role="status">正在載入 SQLite…</span></span></header>
+    <header class="topbar"><div class="breadcrumb">資料庫查詢 <span>/</span> <strong id="breadcrumb-current">查詢練習</strong></div><span class="status"><i></i><span id="db-status" role="status">正在載入 SQLite…</span></span></header>
     <div class="page">
       <section class="hero"><div><div class="eyebrow"><span></span> SQL PRACTICE</div><h1>手搖飲訂單<span>查詢練習</span></h1><p>查詢銷售排行、營收與顧客資料。<br class="desktop-break">選擇題目、修改 SQL，執行並比較結果。</p></div><div class="hero-illustration" aria-hidden="true"><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span><span class="floating-tag">SELECT * FROM tea;</span><div class="cup"><div class="straw"></div><div class="cup-lid"></div><div class="tea-liquid"></div><div class="cup-brand">茶<span>序</span></div><div class="pearls">● ● ●<br>● ● ● ●</div></div><span class="spark spark-one">＋</span><span class="spark spark-two">✳</span></div></section>
       <section class="metrics" aria-label="目前資料集統計"></section>
       <div class="dataset-strip"><span><i></i><strong id="dataset-name"></strong><span id="dataset-note"></span></span><button class="text-button" id="open-import">切換資料來源 ${icon('arrow')}</button></div>
       <section id="lab-view" class="view">
-        <div class="section-heading"><div><span class="eyebrow">EXERCISES</span><h2>選擇練習題</h2></div><span class="progress-label" id="progress-label">已完成 0 / 6 道練習</span></div>
+        <div class="section-heading"><div><span class="eyebrow">EXERCISES</span><h2>選擇練習題</h2></div><span class="progress-label" id="progress-label">已完成 0 / ${exercises.length} 道練習</span></div>
         <div class="workspace"><div class="exercise-list" role="group" aria-label="選擇練習題"></div><div class="exercise-panel">
           <div class="problem"><div class="problem-top"><span class="pill">練習 <span id="exercise-number"></span></span><div id="exercise-tags"></div></div><h3 id="exercise-title"></h3><p id="exercise-question"></p><div class="expected-hint"><strong>預期結果</strong><span id="expected-description"></span></div></div>
           <div class="editor-toolbar"><span>${icon('code')} SQL 編輯器 <small>SQLite</small></span><button class="text-button" id="reset-sql">${icon('reset')} 重設查詢</button></div>
@@ -93,7 +94,6 @@ document.querySelector('#app').innerHTML = `
           <details class="comparison"><summary>理解差異：修改 SQL 後，發生了什麼？<span>＋</span></summary><p id="comparison-explanation"></p><div class="compare-actions"><button class="secondary-button" id="compare-queries">並排執行兩個版本</button><span>比較參考解答與修改版的實際結果</span></div><div id="comparison-result"></div></details>
           <details class="reference"><summary>查看參考 SQL</summary><pre id="reference-sql"></pre></details>
         </div></div>
-        <div class="learning-note">${icon('leaf')}<div><strong>練習重點</strong><p>試著解釋每個 JOIN 的關係、每次分組的依據，以及修改條件後結果為什麼不同。</p></div></div>
       </section>
       <section id="schema-view" class="view" hidden></section>
       <section id="story-view" class="view" hidden></section>
@@ -101,7 +101,7 @@ document.querySelector('#app').innerHTML = `
       <footer><span>茶序 TEA QUERY LAB</span><span>SQLite · 瀏覽器執行</span></footer>
     </div>
   </main>
-  <dialog id="import-dialog"><form method="dialog"><button class="dialog-close" aria-label="關閉">×</button></form><span class="eyebrow">DATA SOURCE</span><h2>選擇你的資料來源</h2><p>預設資料為本作品獨立產生的教學資料。也可以在瀏覽器內匯入已選定的 Milk Tea Sales 三個 CSV；檔案不會上傳伺服器。</p><div class="import-option"><strong>原創示範資料</strong><p>100 位顧客・63 種商品組合・1,200 張訂單<br>單位：新臺幣、ml。可直接開始練習。</p><button id="use-demo" class="secondary-button" type="button">使用示範資料</button></div><div class="import-option"><strong>Milk Tea Sales 原資料集</strong><p>請同時選取 customers_complete.csv、products_complete.csv、orders_complete.csv。保留原始 $ 與 oz 單位，不會換算為新臺幣。</p><label class="file-label">${icon('upload')} 選擇三個 CSV 檔案<input id="csv-files" type="file" accept=".csv,text/csv" multiple></label><p class="fine-print">原資料為作者以 Faker 等工具產生的模擬資料。公開再散布授權尚未確認，因此網站不內附原始檔。</p></div><p id="import-status" role="status" aria-live="polite"></p></dialog>
+  <dialog id="import-dialog"><form method="dialog"><button class="dialog-close" aria-label="關閉">×</button></form><span class="eyebrow">DATA SOURCE</span><h2>選擇資料來源</h2><p>預設資料為本作品獨立產生的教學資料。也可以在瀏覽器內匯入 Milk Tea Sales 的三個 CSV；檔案不會上傳伺服器。</p><div class="import-option"><strong>原創示範資料</strong><p>100 位顧客・63 種商品組合・1,202 張訂單<br>單位：新臺幣、ml。可直接開始練習。</p><button id="use-demo" class="secondary-button" type="button">使用示範資料</button></div><div class="import-option"><strong>Milk Tea Sales 原資料集</strong><p>請同時選取 customers_complete.csv、products_complete.csv、orders_complete.csv。保留原始 $ 與 oz 單位，不會換算為新臺幣。</p><label class="file-label">${icon('upload')} 選擇三個 CSV 檔案<input id="csv-files" type="file" accept=".csv,text/csv" multiple></label><p class="fine-print">原資料為作者以 Faker 等工具產生的模擬資料。公開再散布授權尚未確認，因此網站不內附原始檔。</p></div><p id="import-status" role="status" aria-live="polite"></p></dialog>
 `;
 
 function renderMetrics() {
@@ -111,8 +111,8 @@ function renderMetrics() {
   $('#dataset-note').textContent = `僅供教學 · 金額單位 ${data.currency} · 不代表真實營運`;
 }
 function renderExercises() {
-  $('.exercise-list').innerHTML = exercises.map((e, i) => `<button class="exercise-card ${i === active ? 'selected' : ''}" data-exercise="${i}" aria-pressed="${i === active}"><span class="exercise-index">${completed.has(i) ? icon('check') : String(i + 1).padStart(2, '0')}</span><span><small>${e.category}</small><strong>${e.title}</strong><span class="card-tags">${e.tags.join(' · ')}</span></span><span class="card-arrow">↗</span></button>`).join('');
-  $('#progress-label').textContent = `本次已完成 ${completed.size} / 6 道練習`;
+  $('.exercise-list').innerHTML = exercises.map((e, i) => `<button class="exercise-card ${i === active ? 'selected' : ''}" data-exercise="${i}" data-exercise-id="${e.id}" aria-pressed="${i === active}"><span class="exercise-index">${completed.has(i) ? icon('check') : String(i + 1).padStart(2, '0')}</span><span><small>${e.category}</small><strong>${e.title}</strong><span class="card-tags">${e.tags.join(' · ')}</span></span><span class="card-arrow">↗</span></button>`).join('');
+  $('#progress-label').textContent = `本次已完成 ${completed.size} / ${exercises.length} 道練習`;
 }
 function lineNumbers() { $('.line-numbers').textContent = Array.from({ length: $('#sql-editor').value.split('\n').length }, (_, i) => i + 1).join('\n'); }
 function selectExercise(i) {
@@ -123,7 +123,7 @@ function selectExercise(i) {
   $('#exercise-title').textContent = e.title; $('#exercise-question').textContent = e.question;
   $('#exercise-tags').innerHTML = e.tags.map(t => `<span class="tag">${t}</span>`).join('');
   $('#expected-description').textContent = e.expected;
-  $('#sql-editor').value = typeof drafts[i] === 'string' ? drafts[i] : e.sql; lineNumbers();
+  $('#sql-editor').value = typeof drafts[e.id] === 'string' ? drafts[e.id] : e.sql; lineNumbers();
   $('#comparison-explanation').textContent = e.explanation; $('#reference-sql').textContent = e.sql;
   $('#comparison-result').innerHTML = ''; $('#query-feedback').textContent = ''; $('#elapsed').textContent = ''; $('#result-count').textContent = '';
   renderExpected();
@@ -157,7 +157,7 @@ async function execute() {
     $('#result-count').textContent = `${r.result.truncated ? '前 ' : ''}${r.result.values.length} 列`;
     $('#elapsed').textContent = `${r.elapsed.toFixed(1)} ms`;
     $('#query-feedback').className = `feedback ${r.comparison ? 'success' : 'neutral'}`;
-    $('#query-feedback').textContent = r.comparison ? '✓ 結果與參考解答一致（依列順序比對值）。試著用自己的話解釋原因。' : '查詢執行成功。結果與參考解答不同，請對照預期結果檢查欄位、排序或篩選條件。';
+    $('#query-feedback').textContent = r.comparison ? '✓ 結果與預期結果一致（依列順序比對值）。' : '查詢執行成功。結果與預期結果不同，請對照欄位、排序或篩選條件。';
     if (r.comparison) { completed.add(active); renderExercises(); }
   } catch (e) { showError(e.message); }
   finally { busy = false; syncRun(); }
@@ -177,7 +177,7 @@ function renderStory() {
 }
 
 function renderSources() {
-  $('#sources-view').innerHTML = `<div class="section-heading"><div><span class="eyebrow">DATA SOURCES</span><h2>資料來源與使用方式</h2></div></div><div class="content-card"><span class="pill">目前使用：${escape(data.label)}</span><h3>資料來源與使用限制</h3><p>${escape(data.description)}</p><h4>網站內附：原創示範資料</h4><p>本作品以固定種子獨立產生 100 位匿名顧客、63 種商品組合與 1,200 張訂單，並未複製 Milk Tea Sales 的顧客或交易資料。商品為教學用虛構菜單，金額使用新臺幣，容量使用 ml。五位顧客刻意沒有訂單，用於外連接練習。</p><h4>可本機匯入：Milk Tea Sales</h4><p>作者：williamjowens。原始專案包含 1,000 位顧客、525 種商品組合、5,000 張訂單與 14,960 筆明細，日期範圍為 2023-10-29 至 2024-10-27。作者的程式使用 Faker 與隨機抽樣，屬於合成教學資料。</p><p><a href="https://github.com/williamjowens/excel-dashboard-milk-tea-sales" target="_blank" rel="noopener noreferrer">原始專案 ↗</a> · <a href="https://github.com/williamjowens/excel-dashboard-milk-tea-sales/tree/main/data/raw" target="_blank" rel="noopener noreferrer">三個原始 CSV ↗</a> · <a href="https://github.com/williamjowens/excel-dashboard-milk-tea-sales/blob/main/data/milk_tea_data_creation_and_validation.ipynb" target="_blank" rel="noopener noreferrer">資料產生方式 ↗</a></p><p>查閱日期：2026-10-28。未找到明確的公開再散布授權，因此網站不內附原始 CSV。使用者可自行取得檔案，在本機瀏覽器匯入；檔案不會上傳，也不會永久儲存，重新整理會回到示範資料。</p><button class="secondary-button" id="sources-import">${icon('upload')} 匯入已取得的 CSV</button></div><div class="content-card"><h3>單位與轉換方式</h3><ul class="reflection"><li>金額以整數「分」儲存；查詢除以 100.0 轉為元，避免整數除法。</li><li>原資料的 $ 符號與 oz 容量保持原樣，不逕自宣稱是新臺幣。</li><li>原始訂單明細拆分為 orders 與 order_items，不增加不存在的訂單。</li><li>匯入時只保留顧客編號、名稱、城市、訂閱狀態；不保留電話、地址與電子郵件。</li><li>訂閱欄位為原資料的訂閱狀態，不能直接解讀為付費會員。</li></ul></div><div class="content-card"><h3>查詢與隱私</h3><p>SQL.js 在瀏覽器內執行 SQLite，使用獨立工作執行緒。只允許單一 SELECT 或 WITH 查詢，資料庫為唯讀；查詢超過 4 秒會終止並重啟。結果最多顯示 300 列。SQL 草稿只存在這台裝置的 localStorage，匯入資料只留在當次分頁記憶體。</p><p>技術：Vite、SQL.js（MIT 授權）；不需要後端資料庫帳密。</p></div>`;
+  $('#sources-view').innerHTML = `<div class="section-heading"><div><span class="eyebrow">DATA SOURCES</span><h2>資料來源與使用方式</h2></div></div><div class="content-card"><span class="pill">目前使用：${escape(data.label)}</span><h3>資料來源與使用限制</h3><p>${escape(data.description)}</p><h4>網站內附：原創示範資料</h4><p>本作品以固定種子獨立產生 100 位匿名顧客、63 種商品組合與 1,202 張訂單，並未複製 Milk Tea Sales 的顧客或交易資料。商品為教學用虛構菜單，金額使用新臺幣，容量使用 ml。五位顧客刻意沒有訂單，用於外連接練習；另外安排 2023 與 2024 年一月的訂單，展示跨年分組差異。</p><h4>可本機匯入：Milk Tea Sales</h4><p>作者：williamjowens。原始專案包含 1,000 位顧客、525 種商品組合、5,000 張訂單與 14,960 筆明細，日期範圍為 2023-10-29 至 2024-10-27。作者的程式使用 Faker 與隨機抽樣，屬於合成教學資料。</p><p><a href="https://github.com/williamjowens/excel-dashboard-milk-tea-sales" target="_blank" rel="noopener noreferrer">原始專案 ↗</a> · <a href="https://github.com/williamjowens/excel-dashboard-milk-tea-sales/tree/main/data/raw" target="_blank" rel="noopener noreferrer">三個原始 CSV ↗</a> · <a href="https://github.com/williamjowens/excel-dashboard-milk-tea-sales/blob/main/data/milk_tea_data_creation_and_validation.ipynb" target="_blank" rel="noopener noreferrer">資料產生方式 ↗</a></p><p>查閱日期：2026-10-28。未找到明確的公開再散布授權，因此網站不內附原始 CSV。使用者可自行取得檔案，在本機瀏覽器匯入；檔案不會上傳，也不會永久儲存，重新整理會回到示範資料。</p><button class="secondary-button" id="sources-import">${icon('upload')} 匯入已取得的 CSV</button></div><div class="content-card"><h3>單位與轉換方式</h3><ul class="reflection"><li>金額以整數「分」儲存；查詢除以 100.0 轉為元，避免整數除法。</li><li>原資料的 $ 符號與 oz 容量保持原樣，不逕自宣稱是新臺幣。</li><li>原始訂單明細拆分為 orders 與 order_items，不增加不存在的訂單。</li><li>匯入時只保留顧客編號、名稱、城市、訂閱狀態；不保留電話、地址與電子郵件。</li><li>訂閱欄位為原資料的訂閱狀態，不能直接解讀為付費會員。</li></ul></div><div class="content-card"><h3>查詢與隱私</h3><p>SQL.js 在瀏覽器內執行 SQLite，使用獨立工作執行緒。只允許單一 SELECT 或 WITH 查詢，資料庫為唯讀；查詢超過 4 秒會終止並重啟。結果最多顯示 300 列。SQL 草稿只存在這台裝置的 localStorage，匯入資料只留在當次分頁記憶體。</p><p>技術：Vite、SQL.js（MIT 授權）；不需要後端資料庫帳密。</p></div>`;
   $('#sources-import').onclick = () => $('#import-dialog').showModal();
 }
 function navigate() {
@@ -231,7 +231,8 @@ $('#story-view').onclick = event => {
   const link = event.target.closest('[data-case-exercise]');
   if (!link) return;
   if (busy) { event.preventDefault(); return; }
-  selectExercise(Number(link.dataset.caseExercise));
+  const index = exercises.findIndex(e => e.id === link.dataset.caseExercise);
+  if (index >= 0) selectExercise(index);
 };
 window.addEventListener('hashchange', navigate);
 renderMetrics(); renderSchema(); renderStory(); renderSources(); selectExercise(0); navigate(); restartWorker();

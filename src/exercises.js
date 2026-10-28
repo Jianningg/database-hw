@@ -1,5 +1,15 @@
 export const exercises = [
   {
+    id: 'budget',
+    title: '找出半糖、60 元內的飲品', category: '基礎篩選', tags: ['WHERE', 'AND', 'ORDER BY'],
+    question: '顧客想買半糖且單價不超過 60 元的飲品。列出商品編號、口味、甜度、容量與單價，依價格由低至高排列，同價時依商品編號排序。金額沿用目前資料集的單位。',
+    sql: `SELECT product_id AS 商品編號, flavor AS 口味,\n       sweetness AS 甜度, size_label AS 容量,\n       price_cents / 100.0 AS 單價\nFROM products\nWHERE sweetness IN ('半糖', '50%')\n  AND price_cents <= 6000\nORDER BY price_cents, product_id;`,
+    alternate: `SELECT product_id AS 商品編號, flavor AS 口味,\n       sweetness AS 甜度, size_label AS 容量,\n       price_cents / 100.0 AS 單價\nFROM products\nWHERE sweetness IN ('半糖', '50%')\nORDER BY price_cents, product_id;`,
+    explanation: 'AND 要求甜度與價格同時符合。移除價格條件後，所有半糖商品都會保留，包含超過 60 元的商品。價格以分儲存，6000 分等於 60 元；IN 同時接受示範資料的「半糖」與原資料的「50%」。若目前所有半糖商品都低於上限，結果會相同，可降低價格上限再比較。',
+    expected: '每個符合條件的商品組合一列，單價不超過 60 元；預設示範資料有 9 列。',
+  },
+  {
+    id: 'sales-volume',
     title: '哪種口味最熱賣？', category: '銷售排行', tags: ['JOIN', 'GROUP BY', 'SUM'],
     question: '店長想知道該優先備哪些茶底。請計算各口味的總銷售杯數，依杯數由多至少排列；同杯數時依口味名稱排序。',
     sql: `SELECT p.flavor AS 口味,\n       SUM(i.quantity) AS 銷售杯數\nFROM order_items AS i\nJOIN products AS p\n  ON i.product_id = p.product_id\nGROUP BY p.flavor\nORDER BY 銷售杯數 DESC, 口味;`,
@@ -8,7 +18,8 @@ export const exercises = [
     expected: '每個口味一列，第二欄是銷售杯數，並按杯數遞減排序。',
   },
   {
-    title: '熱賣，也最賺錢嗎？', category: '營收分析', tags: ['JOIN', 'SUM', 'ROUND'],
+    id: 'revenue',
+    title: '哪種口味營收最高？', category: '營收分析', tags: ['JOIN', 'SUM', 'ROUND'],
     question: '比較各口味的銷售金額。使用明細保存的成交單價乘上數量，將分換算為元，依金額由高至低排序。這裡分析的是營收，不是利潤。',
     sql: `SELECT p.flavor AS 口味,\n       ROUND(SUM(i.quantity * i.unit_price_cents) / 100.0, 2) AS 銷售金額\nFROM order_items AS i\nJOIN products AS p ON i.product_id = p.product_id\nGROUP BY p.flavor\nORDER BY 銷售金額 DESC, 口味;`,
     alternate: `SELECT p.flavor AS 口味,\n       SUM(i.quantity) AS 銷售杯數\nFROM order_items AS i\nJOIN products AS p ON i.product_id = p.product_id\nGROUP BY p.flavor\nORDER BY 銷售杯數 DESC, 口味;`,
@@ -16,6 +27,7 @@ export const exercises = [
     expected: '每個口味一列，金額採目前資料來源的貨幣單位。',
   },
   {
+    id: 'inactive',
     title: '誰還沒下過訂單？', category: '顧客關係', tags: ['LEFT JOIN', 'NULL'],
     question: '找出完全沒有訂單的顧客，方便店長規劃首次購買活動。請列出顧客編號與姓名，依編號排序。',
     sql: `SELECT c.customer_id AS 顧客編號, c.name AS 姓名\nFROM customers AS c\nLEFT JOIN orders AS o\n  ON c.customer_id = o.customer_id\nWHERE o.order_id IS NULL\nORDER BY c.customer_id;`,
@@ -24,14 +36,16 @@ export const exercises = [
     expected: '只列出沒有任何訂單的顧客；預設示範資料有 5 位。',
   },
   {
+    id: 'monthly',
     title: '每月的業績如何？', category: '時間趨勢', tags: ['strftime', 'GROUP BY'],
     question: '依年、月彙總銷售金額，按時間排序。訂單日期位於 orders，銷售數量與成交單價位於 order_items。',
     sql: `SELECT strftime('%Y-%m', o.order_date) AS 年月,\n       ROUND(SUM(i.quantity * i.unit_price_cents) / 100.0, 2) AS 銷售金額\nFROM orders AS o\nJOIN order_items AS i ON o.order_id = i.order_id\nGROUP BY 年月\nORDER BY 年月;`,
     alternate: `SELECT strftime('%m', o.order_date) AS 月份,\n       ROUND(SUM(i.quantity * i.unit_price_cents) / 100.0, 2) AS 銷售金額\nFROM orders AS o\nJOIN order_items AS i ON o.order_id = i.order_id\nGROUP BY 月份\nORDER BY 月份;`,
-    explanation: '只取 %m 會把不同年份的同月份合併。預設資料只有 2024 年，因此金額可能相同；匯入跨年原資料後，2023 與 2024 年的十月就會被合併。',
+    explanation: '只取 %m 會把不同年份的同月份合併。示範資料同時包含 2023 與 2024 年的一月：按 %Y-%m 分組會分成兩列，改成 %m 就會合計為同一列。總營收不變，但失去年度差異。匯入的 Milk Tea Sales 原資料則會合併 2023 與 2024 年的十月。',
     expected: '每個年月一列，時間格式為 YYYY-MM，金額為當月所有明細金額加總。',
   },
   {
+    id: 'sweetness',
     title: '哪種甜度最受歡迎？', category: '偏好探索', tags: ['WHERE', 'GROUP BY'],
     question: '計算全部飲品各甜度的銷售杯數，依杯數由多至少排列。接著只看單一口味，觀察偏好分布如何改變。',
     sql: `SELECT p.sweetness AS 甜度, SUM(i.quantity) AS 銷售杯數\nFROM order_items AS i\nJOIN products AS p ON i.product_id = p.product_id\nGROUP BY p.sweetness\nORDER BY 銷售杯數 DESC, 甜度;`,
@@ -40,6 +54,7 @@ export const exercises = [
     expected: '每種甜度一列。原資料使用百分比，示範資料使用無糖、半糖、全糖。',
   },
   {
+    id: 'loyalty',
     title: '找出高消費顧客', category: '進階挑戰', tags: ['HAVING', 'COUNT DISTINCT'],
     question: '找出累積消費達 100 元的顧客，同時列出訂單數與總消費。依消費由高至低排序，顯示前 20 位。金額沿用目前資料集的單位；也可以自行提高門檻。',
     sql: `SELECT c.customer_id AS 顧客編號,\n       COUNT(DISTINCT o.order_id) AS 訂單數,\n       ROUND(SUM(i.quantity * i.unit_price_cents) / 100.0, 2) AS 總消費\nFROM customers AS c\nJOIN orders AS o ON c.customer_id = o.customer_id\nJOIN order_items AS i ON o.order_id = i.order_id\nGROUP BY c.customer_id\nHAVING SUM(i.quantity * i.unit_price_cents) >= 10000\nORDER BY 總消費 DESC, 顧客編號\nLIMIT 20;`,

@@ -19,6 +19,12 @@ export function demoData() {
       selected.add(p[0]); items.push([items.length + 1, id, p[0], random(4) + 1, p[5]]);
     }
   }
+  // Explicit cross-year examples keep the original generated orders intact.
+  orders.push(['T1201', '2023-01-15', 'C001'], ['T1202', '2024-01-15', 'C001']);
+  items.push(
+    [items.length + 1, 'T1201', 'P002', 2, products[1][5]],
+    [items.length + 2, 'T1202', 'P002', 3, products[1][5]],
+  );
   return { customers, products, orders, items, label: '原創模擬資料', currency: 'NT$', description: '使用固定種子產生的教學情境，不代表真實店家營運。', source: 'demo' };
 }
 

@@ -1,4 +1,7 @@
+import { exercises } from './exercises.js';
+
 export function caseStudy(data, { escape, renderTable }) {
+  const number = id => exercises.findIndex(e => e.id === id) + 1;
   const products = new Map(data.products.map(p => [p[0], p]));
   const customers = new Map(data.customers.map(c => [c[0], c]));
   const byOrder = new Map();
@@ -18,7 +21,7 @@ export function caseStudy(data, { escape, renderTable }) {
 
   return `<div class="section-heading"><div><span class="eyebrow">CASE STUDY</span><h2>案例背景：手搖飲店營運分析</h2></div></div>
     <div class="content-card"><h3>這份資料要解決什麼問題？</h3>
-      <p>假設你負責一家手搖飲店的營運。訂單中記錄了誰在什麼日期購買哪些飲品，以及各品項的數量與成交單價。店長希望依這些紀錄安排備料、追蹤營收，並找出尚未購買的顧客。</p>
+      <p>本案例以手搖飲店的營運分析為情境。訂單記錄了顧客在什麼日期購買哪些飲品，以及各品項的數量與成交單價。店長可依這些紀錄安排備料、追蹤營收，並找出尚未購買的顧客。</p>
       <p>目前使用 <strong>${escape(data.label)}</strong>。以下例子的編號、數量與金額都取自目前載入的資料，切換資料來源時會同步更新。這些資料是模擬資料，不能當成真實市場調查。</p>
       ${renderTable({ columns: ['使用者', '要回答的問題', '相關資料表'], values: [
         ['店長', '哪個口味賣出最多杯？哪個口味營收最高？', 'products、order_items'],
@@ -50,7 +53,7 @@ export function caseStudy(data, { escape, renderTable }) {
       }) })}
       <div class="info-callout">這張訂單共有 <strong>${items.length} 筆明細、${cups} 杯飲品、金額 ${money(amount)}</strong>。對明細使用 COUNT(*) 得到 ${items.length}；使用 SUM(quantity) 得到 ${cups}；計算 SUM(quantity × unit_price_cents) / 100.0 得到 ${money(amount)}。</div>
       <p>把 orders 連接 order_items 後，這張訂單的 order_id 會出現 ${items.length} 次。統計訂單數要使用 COUNT(DISTINCT order_id)，才能得到 1 張。</p>
-      <div class="case-query-links"><a href="#lab" data-case-exercise="0">練習 1：杯數與明細筆數 →</a><a href="#lab" data-case-exercise="5">練習 6：訂單數與明細筆數 →</a></div>
+      <div class="case-query-links"><a href="#lab" data-case-exercise="sales-volume">練習 ${number('sales-volume')}：杯數與明細筆數 →</a><a href="#lab" data-case-exercise="loyalty">練習 ${number('loyalty')}：訂單數與明細筆數 →</a></div>
     </div>
     <div class="content-card"><h3>同一口味，為什麼有不同商品編號？</h3>
       ${renderTable({ columns: ['商品編號', '口味', '甜度', '配料', '容量'], values: variants.map(p => p.slice(0, 5)) })}
@@ -68,8 +71,7 @@ export function caseStudy(data, { escape, renderTable }) {
         <li>subscribed 只代表訂閱狀態，不能當成付費會員或實際回購紀錄。</li>
       </ul>
       <div class="info-callout">${noOrders.length ? `目前有 ${noOrders.length} 位顧客沒有訂單，例如 ${escape(noOrders[0][0])}。以 customers LEFT JOIN orders 後，該顧客的訂單欄位為 NULL；INNER JOIN 則不會保留這位顧客。` : '目前所有顧客都有訂單；查詢「沒有下單的顧客」會得到零列，這也是有效結果。'}</div>
-      <div class="case-query-links"><a href="#lab" data-case-exercise="2">練習 3：找出沒有訂單的顧客 →</a></div>
+      <div class="case-query-links"><a href="#lab" data-case-exercise="inactive">練習 ${number('inactive')}：找出沒有訂單的顧客 →</a></div>
     </div>
-    <div class="content-card"><h3>這份資料無法回答的問題</h3><p>資料沒有實際成本、庫存、原料用量、退款或訂單取消狀態，也沒有真實顧客行為。因此可以計算樣本內的銷售金額與數量，不能據此判定實際利潤、庫存缺口或真實消費者偏好。</p></div>
-    <div class="content-card"><h3>報告時需要說明的內容</h3><ol class="reflection"><li>每張表的一列代表什麼？主外鍵如何連接？</li><li>為什麼 COUNT(*)、SUM(quantity) 與 COUNT(DISTINCT order_id) 會得到不同數字？</li><li>WHERE 與 HAVING 分別篩選什麼？</li><li>修改 JOIN、分組或條件後，哪些資料被保留、排除或合併？</li></ol></div>`;
+    <div class="content-card"><h3>這份資料無法回答的問題</h3><p>資料沒有實際成本、庫存、原料用量、退款或訂單取消狀態，也沒有真實顧客行為。因此可以計算樣本內的銷售金額與數量，不能據此判定實際利潤、庫存缺口或真實消費者偏好。</p></div>`;
 }

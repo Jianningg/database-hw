@@ -2,6 +2,7 @@ import { chromium, expect } from '@playwright/test';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { exercises } from '../src/exercises.js';
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
@@ -12,9 +13,16 @@ try {
   await page.goto(process.env.TEA_TEST_URL || 'http://127.0.0.1:5173/');
   await page.getByText('SQLite 已就緒', { exact: true }).waitFor();
   // Expected values must appear without executing or expanding a reference answer.
-  assert.equal(await page.locator('#expected-result tbody tr').count(), 7);
+  assert.equal(await page.locator('#expected-result tbody tr').count(), 9);
   assert.equal(await page.locator('#query-result table').count(), 0);
-  for (let i = 0; i < 6; i++) {
+  assert.equal(await page.locator('[data-exercise]').count(), 7);
+  await page.locator('#load-alternate').click();
+  await page.locator('#run-sql').click();
+  await page.locator('#query-feedback.neutral').waitFor();
+  assert.equal(await page.locator('#query-result tbody tr').count(), 21);
+  assert.equal(await page.locator('#expected-result tbody tr').count(), 9);
+  await page.locator('#reset-sql').click();
+  for (let i = 0; i < exercises.length; i++) {
     await page.locator(`[data-exercise="${i}"]`).click();
     const expected = await page.locator('#expected-result').innerText();
     assert.ok(await page.locator('#expected-result table').count());
@@ -23,7 +31,14 @@ try {
     assert.ok(await page.locator('#query-result table').count());
     assert.equal(await page.locator('#query-result').innerText(), expected);
   }
-  await page.locator('[data-exercise="2"]').click();
+  await page.locator('[data-exercise-id="monthly"]').click();
+  await page.locator('#load-alternate').click();
+  await page.locator('#run-sql').click();
+  await page.locator('#query-feedback.neutral').waitFor();
+  assert.equal(await page.locator('#query-result tbody tr').count(), 12);
+  assert.equal(await page.locator('#expected-result tbody tr').count(), 13);
+  await page.locator('#reset-sql').click();
+  await page.locator('[data-exercise-id="inactive"]').click();
   await page.locator('#run-sql').click();
   await page.locator('#query-feedback.success').waitFor();
   assert.equal(await page.locator('#query-result tbody tr').count(), 5);
@@ -69,26 +84,26 @@ try {
   assert.ok(await page.locator('#case-example').getAttribute('data-order-id'));
   assert.ok(Number(await page.locator('#case-example').getAttribute('data-cups')) > 0);
   assert.equal(await page.locator('#case-example tbody tr').count() > 1, true);
-  await page.locator('[data-case-exercise="5"]').click();
+  await page.locator('[data-case-exercise="loyalty"]').click();
   await expect(page.locator('#lab-view')).toBeVisible();
-  assert.equal(await page.locator('[data-exercise="5"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('[data-exercise-id="loyalty"]').getAttribute('aria-pressed'), 'true');
   if (process.env.TEA_SOURCE_DIR) {
     await page.locator('#open-import').click();
     await page.locator('#csv-files').setInputFiles(['customers_complete.csv', 'products_complete.csv', 'orders_complete.csv'].map(f => path.join(process.env.TEA_SOURCE_DIR, f)));
     await page.waitForFunction(() => document.querySelector('#dataset-name').textContent.includes('原資料集'));
     assert.match(await page.locator('.metrics').textContent(), /1,000/);
     assert.match(await page.locator('.metrics').textContent(), /5,000/);
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < exercises.length; i++) {
       await page.locator(`[data-exercise="${i}"]`).click();
       await page.locator('#run-sql').click();
       await page.locator('#query-feedback.success').waitFor();
     }
     assert.equal(await page.locator('#query-result tbody tr').count(), 20);
-    await page.locator('[data-exercise="2"]').click();
+    await page.locator('[data-exercise-id="inactive"]').click();
     await page.locator('#run-sql').click();
     await page.locator('#query-feedback.success').waitFor();
     assert.equal(await page.locator('#query-result tbody tr').count(), 5);
-    await page.locator('[data-exercise="3"]').click();
+    await page.locator('[data-exercise-id="monthly"]').click();
     await page.locator('#run-sql').click();
     await page.locator('#query-feedback.success').waitFor();
     assert.equal(await page.locator('#query-result tbody tr').count(), 13);
@@ -100,7 +115,7 @@ try {
     await page.locator('#open-import').click();
     await page.locator('#use-demo').click();
     await page.waitForFunction(() => document.querySelector('#dataset-name').textContent === '原創模擬資料');
-    assert.equal(await page.locator('#expected-result tbody tr').count(), 12);
+    assert.equal(await page.locator('#expected-result tbody tr').count(), 13);
     assert.match(await page.locator('#case-example').getAttribute('data-order-id'), /^T/);
   }
   await page.locator('[data-exercise="0"]').click();
@@ -117,5 +132,5 @@ try {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${output}/mobile.png`, fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('PASS: six exercises, live comparisons, SQL errors, read-only protection, escaping, timeout recovery, navigation, desktop and mobile layouts' + (process.env.TEA_SOURCE_DIR ? ', original 3-CSV import and dataset switching' : ''));
+  console.log('PASS: seven exercises, live comparisons, SQL errors, read-only protection, escaping, timeout recovery, navigation, desktop and mobile layouts' + (process.env.TEA_SOURCE_DIR ? ', original 3-CSV import and dataset switching' : ''));
 } finally { await browser.close(); }
