@@ -1,14 +1,18 @@
 import initSqlJs from 'sql.js';
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import { createDatabase, query } from './database.js';
+import { exercises } from './exercises.js';
 let db, SQL;
 self.onmessage = async ({ data: message }) => {
   try {
     if (message.type === 'init') {
       SQL ||= await initSqlJs({ locateFile: () => wasmUrl });
       const next = createDatabase(SQL, message.data);
+      let expected;
+      try { expected = exercises.map(e => query(next, e.sql)); }
+      catch (e) { next.close(); throw e; }
       db?.close(); db = next;
-      self.postMessage({ id: message.id, ready: true });
+      self.postMessage({ id: message.id, ready: true, expected });
     } else {
       const start = performance.now();
       const result = query(db, message.sql);
