@@ -69,7 +69,7 @@ document.querySelector('#app').innerHTML = `
       <a href="#story" data-view="story" class="nav-link">${icon('book')}案例背景</a>
       <a href="#sources" data-view="sources" class="nav-link">${icon('grid')}資料與來源</a>
     </nav>
-    <div class="sidebar-bottom"><div class="mini-leaf">${icon('leaf')}</div><p>手搖飲訂單分析<br>SQL 查詢練習</p><span>資料庫課程 · 互動作品</span></div>
+    <div class="sidebar-bottom"><div class="mini-leaf">${icon('leaf')}</div><p>手搖飲訂單分析<br>SQL 查詢練習</p></div>
   </aside>
   <main>
     <header class="topbar"><div class="breadcrumb">學習工作室 <span>/</span> <strong id="breadcrumb-current">查詢練習</strong></div><span class="status"><i></i><span id="db-status" role="status">正在載入 SQLite…</span></span></header>
